@@ -11,11 +11,11 @@ def location_for(place, fake_version = nil)
 end
 
 group :test do
-  gem "rspec-core",             '3.5.4',                  :require => false
-  gem "rspec-puppet",           '2.5.0',                  :require => false
-  gem 'puppetlabs_spec_helper', '2.1.0',                  :require => false
-  gem 'rspec-puppet-facts',     '1.7.1',                  :require => false
-  gem "puppet-syntax",          '2.1.0',                  :require => false
+  gem "rspec-core",                               :require => false
+  gem "rspec-puppet",                             :require => false
+  gem 'puppetlabs_spec_helper', :git => 'https://github.com/puppetlabs/puppetlabs_spec_helper', :require => false
+  gem 'rspec-puppet-facts',                       :require => false
+  gem "puppet-syntax",                                    :require => false
   gem 'metadata-json-lint',                               :require => false
   gem 'simplecov',                                        :require => false
   gem 'json',                   '1.8.5',                  :require => false
