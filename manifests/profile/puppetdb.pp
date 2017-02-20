@@ -5,6 +5,10 @@
 # please use the puppet::profile::master class
 # This and the puppet::profile::master class are mutually exclusive and will not work on the same node.
 #
+# Puppetdb defaults to using a database served by a database server on the local host, but
+# can be configured to use a remote database. See the database, database_host, database_port,
+# database_username, database_password, database_name, and jdbc_ssl properties
+#
 # @puppet::profile::puppetdb when declaring the puppet::profile::puppetdb class
 #   include puppet::profile::puppetdb
 #
@@ -31,40 +35,48 @@
 #   Non ssl Port to use for puppetdb
 # @param ssl_listen_port [String] Defaults: '8081'
 #   Ssl Port to use for puppetdb
+# @param database [String] Defaults: undef
+#   What database to use. Default allows puppetdb module to determine
+# @param database_host [String] Defaults: undef
+#   The host serving the database. Default allows puppetdb module to decide
+# @param database_port [Integer] Defaults: undef
+#   The port serving the database. Default allows puppetdb module to decide
+# @param database_username [String] Defaults: undef
+#   The username to connect to the database. Default allows puppetdb module to decide
+# @param database_password [String] Defaults: undef
+#   The password (unencrypted) used to connect to the database. Default allows puppetdb module to decide
+# @param database_name [String] Defaults: undef
+#   The name of the database used by puppetdb. Default allows puppetdb module to decide
+# @param jdbc_ssl_properties [String] Defaults: undef.
+#   SSL properties for the database. If you want to use ssl, use "?ssl=true". Default lets puppetdb module decide
 
 class puppet::profile::puppetdb (
-  $puppetdb_version            = 'installed',
-  $node_purge_ttl              = '0s',
-  $node_ttl                    = '0s',
-  $puppetdb_listen_address     = '127.0.0.1',
-  $puppetdb_server             = undef,
-  $puppetdb_manage_dbserver    = true,
-  $puppetdb_ssl_listen_address = '0.0.0.0',
-  $report_ttl                  = '14d',
-  $reports                     = undef,
-  $use_ssl                     = true,
-  $listen_port                 = '8080',
-  $ssl_listen_port             = '8081',
-  $puppet_server_type          = undef,
+  String $puppetdb_version                            = 'installed',
+  String $node_purge_ttl                              = '0s',
+  String $node_ttl                                    = '0s',
+  IP::Address::NoSubnet $puppetdb_listen_address      = '127.0.0.1',
+  Variant[String, Undef] $puppetdb_server             = undef,
+  Boolean $puppetdb_manage_dbserver                   = true,
+  IP::Address::NoSubnet $puppetdb_ssl_listen_address  = '0.0.0.0',
+  String $report_ttl                                  = '14d',
+  $reports                                            = undef,
+  Boolean $use_ssl                                    = true,
+  Integer $listen_port                                = 8080,
+  Integer $ssl_listen_port                            = 8081,
+  Variant[String, Undef] $puppet_server_type          = undef,
+  Variant[String, Undef] $database                    = undef,
+  Variant[String, Undef] $database_host               = undef,
+  Variant[Integer,Undef] $database_port               = undef,
+  Variant[String, Undef] $database_username           = undef,
+  Variant[String, Undef] $database_password           = undef,
+  Variant[String, Undef] $database_name               = undef,
+  Variant[String, Undef] $jdbc_ssl_properties         = undef,
 ) {
-  # input validation
-  validate_bool(
-    $use_ssl
-  )
-  validate_string(
-    $puppetdb_version,
-    $node_purge_ttl,
-    $node_ttl,
-    $puppetdb_listen_address,
-    $puppetdb_ssl_listen_address,
-    $report_ttl,
-  )
-  validate_integer(
-    [
-      $listen_port,
-      $ssl_listen_port,
-    ]
-  )
+
+  # manage_dbserver is inconsistent with a remote database
+  if $puppetdb_manage_dbserver and (($database_host != undef) and ($database_host != 'localhost')) {
+    fail ('specifying a database_host other than localhost is inconsistent with puppetdb_manage_dbserver')
+  }
 
   # add deprecation warnings
   if $puppetdb_server != undef {
@@ -101,21 +113,29 @@ class puppet::profile::puppetdb (
 
   # version is now managed with the puppetdb::globals class
   class { '::puppetdb::globals':
-    version   => $puppetdb_version,
+    version  => $puppetdb_version,
+    database => $database,
   }
 
   # setup puppetdb
   class { '::puppetdb':
-    listen_port        => $listen_port,
-    ssl_listen_port    => $ssl_listen_port,
-    ssl_deploy_certs   => $ssl_deploy_certs,
-    disable_ssl        => $disable_ssl,
-    listen_address     => $puppetdb_listen_address,
-    ssl_listen_address => $puppetdb_ssl_listen_address,
-    manage_dbserver    => $puppetdb_manage_dbserver,
-    node_ttl           => $node_ttl,
-    node_purge_ttl     => $node_purge_ttl,
-    report_ttl         => $report_ttl,
+    listen_port         => $listen_port,
+    ssl_listen_port     => $ssl_listen_port,
+    ssl_deploy_certs    => $ssl_deploy_certs,
+    disable_ssl         => $disable_ssl,
+    listen_address      => $puppetdb_listen_address,
+    ssl_listen_address  => $puppetdb_ssl_listen_address,
+    manage_dbserver     => $puppetdb_manage_dbserver,
+    node_ttl            => $node_ttl,
+    node_purge_ttl      => $node_purge_ttl,
+    report_ttl          => $report_ttl,
+    database            => $database,
+    database_host       => $database_host,
+    database_port       => $database_port,
+    database_username   => $database_username,
+    database_password   => $database_password,
+    database_name       => $database_name,
+    jdbc_ssl_properties => $jdbc_ssl_properties,
   }
 
 }

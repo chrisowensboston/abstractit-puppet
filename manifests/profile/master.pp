@@ -3,13 +3,17 @@
 # If you want PuppetDB on a separate node please use the puppet::profile::puppetdb class
 # This and the puppet::profile::puppetdb class are mutually exclusive and will not work on the same node.
 #
+# Note that, while puppetdb is set up on the same node as puppetserver, puppetdb's underlying
+# database can be on a different node as a remote database See the database, database_host, database_port,
+# database_username, database_password, database_name, and jdbc_ssl properties
+
 
 # @param autosign [Boolean] Default: false
 #   Whether or not to enable autosign.
 # @param autosign_domains [Array] Default: empty
 #   array of domains to use for basic autosigning
 # @param autosign_file [String] Default: $confdir/autosign.conf
-#   file to use for basic autosigning
+#   file to use for basic autosigningpuppetlabs-puppetdb/manifests/
 # @param autosign_method [String] Default: file
 #   Method to use for autosign
 #   the default 'file' will use the $confdir/autosign.conf file to determine which certs to sign.
@@ -109,6 +113,20 @@
 #   Ssl Port to use for puppetdb
 # @puppet_server_type [String] Defaults: 'passenger'
 #   Type of puppet server set to puppetserver if using the new puppetserver
+# @param database [String] Defaults: undef
+#   What database to use. Default allows puppetdb module to determine
+# @param database_host [String] Defaults: undef
+#   The host serving the database. Default allows puppetdb module to decide
+# @param database_port [Integer] Defaults: undef
+#   The port serving the database. Default allows puppetdb module to decide
+# @param database_username [String] Defaults: undef
+#   The username to connect to the database. Default allows puppetdb module to decide
+# @param database_password [String] Defaults: undef
+#   The password (unencrypted) used to connect to the database. Default allows puppetdb module to decide
+# @param database_name [String] Defaults: undef
+#   The name of the database used by puppetdb. Default allows puppetdb module to decide
+# @param jdbc_ssl_properties [String] Defaults: undef.
+#   SSL properties for the database connection. If you want to use ssl, use "?ssl=true". Default lets puppetdb module decide
 
 class puppet::profile::master (
   $autosign                           = false,
@@ -157,8 +175,20 @@ class puppet::profile::master (
   $restart_puppet                     = true,
   $puppetdb_use_ssl                   = true,
   $puppetdb_listen_port               = '8080',
-  $puppetdb_ssl_listen_port           = '8081'
-) {
+  $puppetdb_ssl_listen_port           = '8081',
+  $database                           = undef,
+  $database_host                      = undef,
+  $database_port                      = undef,
+  $database_username                  = undef,
+  $database_password                  = undef,
+  $database_name                      = undef,
+  $jdbc_ssl_properties                = undef,
+)
+{
+  # manage_dbserver is inconsistent with a remote database
+  if $puppetdb_manage_dbserver and (($database_host != undef) and ($database_host != 'localhost')) {
+    fail ('specifying a database_host other than localhost is inconsistent with puppetdb_manage_dbserver')
+  }
   class { '::puppet::master':
     autosign                           => $autosign,
     autosign_domains                   => $autosign_domains,
@@ -208,21 +238,29 @@ class puppet::profile::master (
 
   # version is now managed with the puppetdb::globals class
   class { '::puppetdb::globals':
-    version   => $puppetdb_version,
+    version  => $puppetdb_version,
+    database => $database,
   }
   if ($puppetdb == true) {
     # setup puppetdb
     class { '::puppetdb':
-      listen_port        => $puppetdb_listen_port,
-      ssl_listen_port    => $puppetdb_ssl_listen_port,
-      disable_ssl        => $puppetdb_disable_ssl,
-      listen_address     => $puppetdb_listen_address,
-      ssl_listen_address => $puppetdb_ssl_listen_address,
-      manage_dbserver    => $puppetdb_manage_dbserver,
-      node_ttl           => $puppetdb_node_ttl,
-      node_purge_ttl     => $puppetdb_node_purge_ttl,
-      report_ttl         => $report_ttl,
-      require            => Class['::puppet::master'],
+      listen_port         => $puppetdb_listen_port,
+      ssl_listen_port     => $puppetdb_ssl_listen_port,
+      disable_ssl         => $puppetdb_disable_ssl,
+      listen_address      => $puppetdb_listen_address,
+      ssl_listen_address  => $puppetdb_ssl_listen_address,
+      manage_dbserver     => $puppetdb_manage_dbserver,
+      node_ttl            => $puppetdb_node_ttl,
+      node_purge_ttl      => $puppetdb_node_purge_ttl,
+      report_ttl          => $report_ttl,
+      database            => $database,
+      database_host       => $database_host,
+      database_port       => $database_port,
+      database_username   => $database_username,
+      database_password   => $database_password,
+      database_name       => $database_name,
+      jdbc_ssl_properties => $jdbc_ssl_properties,
+      require             => Class['::puppet::master'],
     }
   }
   if ($puppetdb_server != undef) {
