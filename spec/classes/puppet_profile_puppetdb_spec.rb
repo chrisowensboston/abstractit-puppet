@@ -60,7 +60,7 @@ describe 'puppet::profile::puppetdb', :type => :class do
             :version => 'installed'
           })
         end
-        it 'should contain class ::puppetdb' do
+        it 'should contain class puppetdb' do
           should contain_class('puppetdb').with({
             :listen_port        => '8080',
             :ssl_listen_port    => '8081',
@@ -74,6 +74,41 @@ describe 'puppet::profile::puppetdb', :type => :class do
           })
         end
       end#no params
+      context 'when database is elsewhere' do
+        let (:params) do {
+            :database => 'postgres',
+            :database_host => 'bip.bop',
+            :database_port => 123,
+            :database_username => 'yewser',
+            :database_password => 'sesame',
+            :database_name     => 'dbname',
+            :jdbc_ssl_properties => 'funky1',
+            :puppetdb_manage_dbserver => false,
+          }
+        end
+            
+        it 'should contain class puppetdb' do
+          should contain_class('puppetdb').with({
+            :listen_port         => '8080',
+            :ssl_listen_port     => '8081',
+            :disable_ssl         => false,
+            :manage_dbserver     => false,                                      
+            :listen_address      => '127.0.0.1',
+            :ssl_listen_address  => '0.0.0.0',
+            :node_ttl            => '0s',
+            :node_purge_ttl      => '0s',
+            :report_ttl          => '14d',
+            :database            => 'postgres',
+            :database_host       => 'bip.bop',
+            :database_port       => 123,
+            :database_username   => 'yewser',
+            :database_password   => 'sesame',
+            :database_name       => 'dbname',
+            :jdbc_ssl_properties => 'funky1',
+         })
+        end
+      end
+
 
     end
   end
